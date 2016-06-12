@@ -69,7 +69,7 @@ def main():
 
     plt.figure()
     plt.plot(UC.give_state_course().T)   
-    plt.xlim((0,5))     
+    plt.xlim((0,10))     
     
     plt.show()
     
