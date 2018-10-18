@@ -22,7 +22,7 @@ class KNet:
         #self.states = np.matrix([4,1,3,5,6,2]).T ## memory of phases
         self.states = np.matrix(np.random.uniform(0,2*np.pi,size=(R*N,1)))
         #self.w = np.matrix([3.0,3.3,3.6,3.9,4.2,4.5]).T#np.matrix(np.random.normal(3,.2,size=(6,1))) #init intrinsic freq.
-        self.w = np.matrix(np.random.normal(3,.2,size=(R*N,1)))
+        self.w = np.matrix(np.random.normal(20,0.2,size=(R*N,1)))
         self.t = 0 #time
         self.K = K #coupling constant
         self.dt = dt #time step
@@ -81,8 +81,8 @@ class KNet:
         self.states = np.hstack((self.states,new_state))
         self.step_num += 1
         
-        #Runge Kutta
-        '''
+    #Runge Kutta
+    def step_RK(self):
         k1 = self.phase_dev(self.states[:,-1])*self.dt
         k2 = self.phase_dev(self.states[:,-1]+ .5*k1)*self.dt
         k3 = self.phase_dev(self.states[:,-1]+ .5*k2)*self.dt
@@ -91,7 +91,7 @@ class KNet:
         new_state = new_state % (2 * np.pi)
         self.t += self.dt
         self.states = np.hstack((self.states,new_state))  
-        '''
+        self.step_num +=1
 
     def plot_timecourse(self):
         
@@ -106,7 +106,7 @@ class KNet:
 def run_model(K = 10, t = 10):
     P = KNet(K,N=3)
     for ts in range(0,int(t/P.dt)):
-        P.step()
+        P.step_RK()
     return P
 
 
