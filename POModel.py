@@ -11,7 +11,7 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 
-class POModel:
+class KNet:
     def __init__(self, A, K = 10, dt = .01):
         self.G = nx.from_numpy_matrix(A) #Graph
         #self.states = np.matrix([4,1,3,5,6,2]).T ## memory of phases
@@ -55,7 +55,7 @@ class POModel:
 
         
 def run_model(A, K = 10, t = 10):
-    P = POModel(A, K)
+    P = KNet(A, K)
     for ts in range(0,int(t/P.dt)):
         P.step()
     return P
