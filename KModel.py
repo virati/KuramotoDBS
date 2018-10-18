@@ -50,6 +50,7 @@ class KModel:
     #time step function
     def step(self):
         self.euler_step()
+        #self.runge_kutta_step()
     
     #coherence function
     def coh_func(self,coh,x):
@@ -67,6 +68,10 @@ class KModel:
         e = [self.coh_func(self.coh[i],M.tolist()[i])[0] for i in range(0,len(self.coh))]
         return np.matrix(e).T   
 
+    def plot_timeseries(self):
+        plt.figure()
+        plt.plot(np.sin(self.states.T))
+        plt.title('State trajectory for all nodes')
 
 def run_model(A, K = 10, t = 10):
     P = KModel(A, K)
@@ -96,7 +101,6 @@ def R_sweep(A, Ki = 0, Kf = 10, N = 10):
     return (KSpan, KVar)
 
 def animate(K,t):
-
     import time
     import pylab as plt
     t_full = t
@@ -128,3 +132,5 @@ if __name__ == '__main__':
     
     K = KModel(A)
     #animate(K,10)
+    model_out = run_model(A,t=10,K=10)
+    model_out.plot_timeseries()
