@@ -25,7 +25,7 @@ class KNet:
     def __init__(self, K = 10, dt =.01,R=6,N=1):
         
         self.L = np.zeros((R*N,R*N))
-        self.make_connectivity(R,N,form='block')
+        self.make_connectivity(R,N,form='alltoall')
         
         self.G = nx.from_numpy_matrix(self.L) #Graph
         #self.states = np.matrix([4,1,3,5,6,2]).T ## memory of phases
@@ -38,7 +38,7 @@ class KNet:
         self.r_bound = 20
         
         #self.w = np.matrix([3.0,3.3,3.6,3.9,4.2,4.5]).T#np.matrix(np.random.normal(3,.2,size=(6,1))) #init intrinsic freq.
-        self.w = np.matrix(np.random.normal(20,0.2,size=(R*N,1)))
+        self.w = np.matrix(np.random.normal(20,0.5,size=(R*N,1)))
         self.t = 0 #time
         self.K = K #coupling constant
         self.dt = dt #time step
