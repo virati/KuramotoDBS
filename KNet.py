@@ -171,8 +171,6 @@ def run_model(K = 10, t = 10):
 
 
 if __name__=='__main__':
-            
-    
     modelOut = run_model()
     modelOut.plot_timecourse()
     modelOut.draw_network()
