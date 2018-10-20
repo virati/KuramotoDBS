@@ -24,8 +24,8 @@ def ew_multi(*args):
 class KNet:
     def __init__(self, K = 10, dt =.01,R=6,N=1):
         
-        self.L = np.zeros((R*N,R*N))
-        self.make_connectivity(R,N,form='alltoall')
+        self.make_connectivity(R,N,form='block')
+        self.make_control(R,N)
         
         self.G = nx.from_numpy_matrix(self.L) #Graph
         #self.states = np.matrix([4,1,3,5,6,2]).T ## memory of phases
@@ -43,6 +43,8 @@ class KNet:
         self.K = K #coupling constant
         self.dt = dt #time step
         self.step_num = 0
+        self.K_u = 100
+
         
         
     def draw_network(self):
@@ -51,14 +53,32 @@ class KNet:
 
     def plot_connectivity(self):
         plt.figure()
+        plt.subplot(1,2,1)
         plt.imshow(self.L)
         plt.suptitle('Laplacian')
+        plt.subplot(1,2,2)
+        plt.imshow(self.g_u)
+        plt.suptitle('Control')
+        
+    def make_control(self,R,N):
+        self.g_u = np.zeros((R*N,R*N))
+        #Off diagonal strong connectivities for the cos factor
+        ctrl_matrix = np.ones((N,N))
+        
+        
+        r_1 = 2
+        r_2 = 2
+        self.g_u[r_1*N:(r_1+1)*N,r_2*N:(r_2+1)*N] = ctrl_matrix
+        
+        self.G_ctrl = nx.from_numpy_matrix(self.g_u)
+        
         
     def make_connectivity(self,R=6,N=1,form='block'):
+        self.L = np.zeros((R*N,R*N))
         if form == 'block':
-            sparsity = 0.99
+            sparsity = 0.98
             for nn in range(R):
-                intermed_matrix = rand.rand(N,N)/3
+                intermed_matrix = rand.rand(N,N)
                 
                 #If we want to binarize
                 #intermed_matrix[intermed_matrix < 0.2] = 0
@@ -90,12 +110,19 @@ class KNet:
     #Kuramoto differential equation
     def phase_dev(self,phase):
         D = (nx.incidence_matrix(self.G, oriented = True, weight = 'weight')).todense() #incidence
-        N = np.random.normal(0, 10, [len(D[0]), 1])
+        N = np.random.normal(0, 1, [len(D[0]), 1])
         
         # How to handle Rs
-        rsq = self.r_states[:,-1] * self.r_states[:,-1].T
+        #rsq = self.r_states[:,-1] * self.r_states[:,-1].T
         
-        return self.w - self.K / len(self.G) * rsq/(10**2) * D * np.sin(D.T * self.states[:,-1]) + N
+        #How to bring phases together; this is the intrinsic alpha mode
+        bring_in = self.w - self.K / len(self.G) * D * np.sin(D.T * self.states[:,-1]) + N
+        
+        
+        D_ctrl = (nx.incidence_matrix(self.G_ctrl, oriented = True, weight = 'weight')).todense()
+        bring_out = self.K_u * D_ctrl * np.cos(D_ctrl.T * self.states[:,-1])
+        
+        return bring_in + bring_out
         #return self.w - np.multiply((1/self.r_states[:,-1]),self.K / len(self.G) * D * np.sin(D.T * self.states[:,-1]) + N)
     
     # 4th order Runge-Kutta approximation
@@ -125,7 +152,7 @@ class KNet:
             return 5 * np.tanh((ew_multi((rin - self.r_centers),(rin - self.r_centers - 5),(rin - self.r_centers + 5),(rin - self.r_bound),(rin+self.r_bound)))/5)  + N
     
     def plot_r_stats(self):
-        plt.figure()
+        #plt.figure()
         plt.plot(np.std(self.states,axis=0).T)
         
     #Runge Kutta
@@ -153,15 +180,18 @@ class KNet:
         
         tvect = np.linspace(0,(self.step_num+1) * self.dt,self.step_num+1)
         plt.figure()
-        plt.subplot(211)
+        plt.subplot(311)
         plt.plot(tvect,np.sin(self.states.T))
         plt.xlabel('Time Steps')
         plt.ylabel('x')
         plt.title('t')
         
-        plt.subplot(212)
+        plt.subplot(312)
         plt.plot(tvect,(self.r_states.T))
         plt.hlines(self.r_centers,xmin=0,xmax=10)
+        
+        plt.subplot(313)
+        self.plot_r_stats()
 #%%       
 def run_model(K = 10, t = 10):
     P = KNet(K,N=5)
@@ -171,7 +201,7 @@ def run_model(K = 10, t = 10):
 
 
 if __name__=='__main__':
-    modelOut = run_model()
+    modelOut = run_model(K=20)
     modelOut.plot_timecourse()
     modelOut.draw_network()
     modelOut.plot_connectivity()
