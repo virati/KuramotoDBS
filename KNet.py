@@ -43,9 +43,7 @@ class KNet:
         self.K = K #coupling constant
         self.dt = dt #time step
         self.step_num = 0
-        self.K_u = 100
-
-        
+        self.K_u = 20
         
     def draw_network(self):
         plt.figure()
@@ -60,14 +58,14 @@ class KNet:
         plt.imshow(self.g_u)
         plt.suptitle('Control')
         
-    def make_control(self,R,N):
+    def make_control(self,R,N,weight=2):
         self.g_u = np.zeros((R*N,R*N))
         #Off diagonal strong connectivities for the cos factor
-        ctrl_matrix = np.ones((N,N))
+        ctrl_matrix = weight*np.ones((N,N))
         
         
         r_1 = 2
-        r_2 = 2
+        r_2 = 3
         self.g_u[r_1*N:(r_1+1)*N,r_2*N:(r_2+1)*N] = ctrl_matrix
         
         self.G_ctrl = nx.from_numpy_matrix(self.g_u)
@@ -76,9 +74,9 @@ class KNet:
     def make_connectivity(self,R=6,N=1,form='block'):
         self.L = np.zeros((R*N,R*N))
         if form == 'block':
-            sparsity = 0.98
+            sparsity = 0.95
             for nn in range(R):
-                intermed_matrix = rand.rand(N,N)
+                intermed_matrix = 5*rand.rand(N,N)
                 
                 #If we want to binarize
                 #intermed_matrix[intermed_matrix < 0.2] = 0
@@ -89,7 +87,7 @@ class KNet:
                 #Now do off-diagonals
                 long_mask = rand.randint(100,size=self.L.shape)
                 long_mask[long_mask < 100*sparsity] = 0
-                long_mask[long_mask >=100*sparsity] = 3
+                long_mask[long_mask >=100*sparsity] = 2
                 
                 self.L += long_mask
                 
@@ -97,7 +95,8 @@ class KNet:
                 #self.L[self.L > 0] = 1
                 
         elif form == 'alltoall':
-            self.L = np.ones((R*N,R*N))
+            #self.L = np.ones((R*N,R*N))
+            self.L = rand.rand(R*N,R*N)
             
         elif form == 'UCircuit':
             nodes = [1,2,3,4,5,6]
@@ -120,7 +119,7 @@ class KNet:
         
         
         D_ctrl = (nx.incidence_matrix(self.G_ctrl, oriented = True, weight = 'weight')).todense()
-        bring_out = self.K_u * D_ctrl * np.cos(D_ctrl.T * self.states[:,-1])
+        bring_out = self.K_u / len(self.G) * D_ctrl * np.cos(D_ctrl.T * self.states[:,-1])
         
         return bring_in + bring_out
         #return self.w - np.multiply((1/self.r_states[:,-1]),self.K / len(self.G) * D * np.sin(D.T * self.states[:,-1]) + N)
@@ -201,7 +200,7 @@ def run_model(K = 10, t = 10):
 
 
 if __name__=='__main__':
-    modelOut = run_model(K=20)
+    modelOut = run_model()
     modelOut.plot_timecourse()
     modelOut.draw_network()
     modelOut.plot_connectivity()
