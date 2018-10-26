@@ -12,6 +12,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import numpy.random as rand
 
+import pdb
+
 def ew_multi(*args):
     amatr = np.ones_like(args[0])
     for arg in args:
@@ -25,7 +27,10 @@ class KNet:
     def __init__(self, K = 10, dt =.01,R=6,N=1):
         
         self.make_connectivity(R,N,form='block')
-        self.make_control(R,N)
+        self.make_control(R,N,weight=1)
+        
+        self.N = N
+        self.R = R
         
         self.G = nx.from_numpy_matrix(self.L) #Graph
         #self.states = np.matrix([4,1,3,5,6,2]).T ## memory of phases
@@ -43,7 +48,9 @@ class KNet:
         self.K = K #coupling constant
         self.dt = dt #time step
         self.step_num = 0
-        self.K_u = 20
+        self.on_K_u = 20
+        
+        self.o_stat = []
         
     def draw_network(self):
         plt.figure()
@@ -58,15 +65,27 @@ class KNet:
         plt.imshow(self.g_u)
         plt.suptitle('Control')
         
+    '''
+    Weight defaults to 2
+    '''
+    
     def make_control(self,R,N,weight=2):
         self.g_u = np.zeros((R*N,R*N))
         #Off diagonal strong connectivities for the cos factor
         ctrl_matrix = weight*np.ones((N,N))
         
+        edge_couples = [[2,3],[0,5],[1,2]]
         
         r_1 = 2
         r_2 = 3
-        self.g_u[r_1*N:(r_1+1)*N,r_2*N:(r_2+1)*N] = ctrl_matrix
+        
+        for edge in edge_couples:
+            r_1 = edge[0]
+            r_2 = edge[1]
+            self.g_u[r_1*N:(r_1+1)*N,r_2*N:(r_2+1)*N] = ctrl_matrix
+            #do the other direction as well
+            self.g_u[r_2*N:(r_2+1)*N,r_1*N:(r_1+1)*N] = ctrl_matrix
+        
         
         self.G_ctrl = nx.from_numpy_matrix(self.g_u)
         
@@ -74,9 +93,12 @@ class KNet:
     def make_connectivity(self,R=6,N=1,form='block'):
         self.L = np.zeros((R*N,R*N))
         if form == 'block':
-            sparsity = 0.95
+            inner_connectivity_weight = 5 # default = 5
+            inner_connectivity_offset = 1 # default = 0
+            
+            sparsity = 0.98 # default sparsity is 0.99
             for nn in range(R):
-                intermed_matrix = 5*rand.rand(N,N)
+                intermed_matrix = inner_connectivity_weight*(inner_connectivity_offset+rand.rand(N,N))
                 
                 #If we want to binarize
                 #intermed_matrix[intermed_matrix < 0.2] = 0
@@ -87,7 +109,7 @@ class KNet:
                 #Now do off-diagonals
                 long_mask = rand.randint(100,size=self.L.shape)
                 long_mask[long_mask < 100*sparsity] = 0
-                long_mask[long_mask >=100*sparsity] = 2
+                long_mask[long_mask >=100*sparsity] = 10
                 
                 self.L += long_mask
                 
@@ -140,7 +162,22 @@ class KNet:
         
         self.step_num += 1
     
-    def r_dyn(self,rin,form='quintic'):
+    def r_dyn(self,rin):
+        #we want to take the r inputs and subtract the region's phasor amplitude
+        #state are the PHASES
+        #pdb.set_trace()
+        phasors = np.multiply(rin,np.exp(1j * self.states[:,-1]))
+        r_change = np.zeros_like(self.states[:,-1])
+        region_phasor = np.zeros((self.R,1))
+        
+        for rr in range(self.R):
+            region_phasor[rr] = 1/(self.N) * np.sum(phasors[rr*self.N:(rr+1)*self.N])
+            r_change[rr*self.N : (rr+1) * self.N] = np.abs(region_phasor[rr])
+        r_change = - (rin - 2) - 5*r_change
+        
+        return r_change
+    
+    def POLYr_dyn(self,rin,form='quintic'):
         
         if form == 'cubic':
             N = np.random.normal(0, 10, (rin.shape[0], 1))
@@ -152,10 +189,13 @@ class KNet:
     
     def plot_r_stats(self):
         #plt.figure()
-        plt.plot(np.std(self.states,axis=0).T)
+        #plt.plot(np.std(self.states,axis=0).T)
+        plt.plot(self.r_states.T)
         
     #Runge Kutta
-    def step_RK(self):
+    def step_RK(self,K_u=0):
+        self.K_u = K_u
+        
         k1 = self.phase_dev(self.states[:,-1])*self.dt
         k2 = self.phase_dev(self.states[:,-1]+ .5*k1)*self.dt
         k3 = self.phase_dev(self.states[:,-1]+ .5*k2)*self.dt
@@ -169,15 +209,23 @@ class KNet:
         p2 = self.r_dyn(self.r_states[:,-1] + 0.5*p1)*self.dt
         p3 = self.r_dyn(self.r_states[:,-1] + 0.5*p2)*self.dt
         p4 = self.r_dyn(self.r_states[:,-1] + p3)*self.dt
-        new_r_state = self.r_states[:,-1] + ((p1 + 2*p2 + 2*p3 + p4)/6)
+        new_r_state = np.maximum(self.r_states[:,-1] + ((p1 + 2*p2 + 2*p3 + p4)/6),0)
         self.r_states = np.hstack((self.r_states,new_r_state))
         
         self.t += self.dt
         self.step_num +=1
+        
+        #compute the order statistic for each node
+        aggr_r = []
+        for rr in range(self.R):
+            aggr_r.append(np.sum(np.exp(1j * self.states[self.N * rr: self.N * (rr+1)])))
+        self.o_stat.append(aggr_r)
+        
 
     def plot_timecourse(self):
         
         tvect = np.linspace(0,(self.step_num+1) * self.dt,self.step_num+1)
+        
         plt.figure()
         plt.subplot(311)
         plt.plot(tvect,np.sin(self.states.T))
@@ -186,16 +234,25 @@ class KNet:
         plt.title('t')
         
         plt.subplot(312)
-        plt.plot(tvect,(self.r_states.T))
+        #plt.plot(tvect,(self.r_states.T))
+        plt.plot(np.abs(self.o_stat))
+        plt.plot()
         plt.hlines(self.r_centers,xmin=0,xmax=10)
+        plt.title('Order statistics')
         
         plt.subplot(313)
         self.plot_r_stats()
+        plt.title('R statistics')
 #%%       
 def run_model(K = 10, t = 10):
-    P = KNet(K,N=5)
+    P = KNet(K,R=6,N=5)
     for ts in range(0,int(t/P.dt)):
-        P.step_RK()
+        if ts > t/(2*P.dt):
+            K_u = 200
+        else:
+            K_u = 0
+            
+        P.step_RK(K_u =K_u)
     return P
 
 
