@@ -49,7 +49,6 @@ class KNet:
         self.K = K #coupling constant
         self.dt = dt #time step
         self.step_num = 0
-        self.on_K_u = 20
         
         self.o_stat = []
         
@@ -158,7 +157,7 @@ class KNet:
         # Control is done HERE
         D_ctrl = (nx.incidence_matrix(self.G_ctrl, oriented = True, weight = 'weight')).todense()
         #bring_out = self.K_u / len(self.G) * D_ctrl * np.cos(D_ctrl.T * self.states[:,-1])
-        bring_stim = self.K_u / len(self.G) * D_ctrl * np.sin(D_ctrl.T * self.states[:,-1]) + D_ctrl * 200 * D_ctrl.T * np.ones_like(self.states[:,-1])
+        bring_stim = self.K_u / len(self.G) * D_ctrl * np.sin(D_ctrl.T * self.states[:,-1]) + D_ctrl * 400 * D_ctrl.T * np.ones_like(self.states[:,-1])
         
         # Inputs are done HERE
         # TREAT STIM LIKE A "PATHOLOGY FIXER" to let the brain's intrinsic dynamics do their thing.
@@ -167,7 +166,7 @@ class KNet:
         input_out = self.K_i / len(self.G) * D_inp * np.cos(D_inp.T * self.states[:,-1])
         
         
-        return bring_in + bring_stim + input_out
+        return bring_in + bring_stim + input_out + N
         #return self.w - np.multiply((1/self.r_states[:,-1]),self.K / len(self.G) * D * np.sin(D.T * self.states[:,-1]) + N)
     
     # 4th order Runge-Kutta approximation
@@ -197,7 +196,8 @@ class KNet:
         for rr in range(self.R):
             region_phasor[rr] = 1/(self.N) * np.sum(phasors[rr*self.N:(rr+1)*self.N])
             r_change[rr*self.N : (rr+1) * self.N] = np.abs(region_phasor[rr])
-        r_change = - (rin - 2) - 5*r_change
+            
+        r_change = - (rin - 2) - np.multiply(r_change,r_change)
         
         return r_change
     
@@ -236,14 +236,21 @@ class KNet:
         new_r_state = np.maximum(self.r_states[:,-1] + ((p1 + 2*p2 + 2*p3 + p4)/6),0)
         self.r_states = np.hstack((self.r_states,new_r_state))
         
+        #%%
+        #order stat handling
+        self.o_stat.append((self.order_stat()))
+        
         self.t += self.dt
         self.step_num +=1
         
+    def order_stat(self):
         #compute the order statistic for each node
         aggr_r = []
         for rr in range(self.R):
             aggr_r.append(np.sum(np.exp(1j * self.states[self.N * rr: self.N * (rr+1),-1])))
-        self.o_stat.append((aggr_r))
+            
+        return aggr_r
+        
         
 
     def plot_timecourse(self):
@@ -264,16 +271,21 @@ class KNet:
         plt.plot(np.abs(self.o_stat))
         #plt.hlines(self.r_centers,xmin=0,xmax=10)
         plt.title('Order statistics')
+    
         
         plt.subplot(313)
-        self.plot_r_stats()
-        plt.title('R statistics')
+        aggr = np.sum(np.array(self.o_stat),axis=1)
+        plt.plot(np.abs(aggr))
+        plt.title('Across Rs')
+        
+        plt.figure()
+        plt.plot(self.r_states.T)
 #%%       
 def run_model(K = 10, t = 5):
     P = KNet(K,R=6,N=5,dt=0.001)
     for ts in range(0,int(t/P.dt)):
         if ts > t/(2*P.dt):
-            K_u = 200
+            K_u = 100
         else:
             K_u = 0
             
@@ -282,7 +294,7 @@ def run_model(K = 10, t = 5):
 
 
 if __name__=='__main__':
-    modelOut = run_model()
+    modelOut = run_model(K=5)
     modelOut.plot_timecourse()
     modelOut.draw_network()
     modelOut.plot_connectivity()
