@@ -28,6 +28,7 @@ class KNet:
         
         self.make_connectivity(R,N,form='block')
         self.make_control(R,N,weight=1)
+        self.make_input_G(R,N,weight=2)
         
         self.N = N
         self.R = R
@@ -51,6 +52,8 @@ class KNet:
         self.on_K_u = 20
         
         self.o_stat = []
+        
+        self.K_i = 10
         
     def draw_network(self):
         plt.figure()
@@ -76,9 +79,6 @@ class KNet:
         
         edge_couples = [[2,3],[0,5],[1,2]]
         
-        r_1 = 2
-        r_2 = 3
-        
         for edge in edge_couples:
             r_1 = edge[0]
             r_2 = edge[1]
@@ -88,7 +88,23 @@ class KNet:
         
         
         self.G_ctrl = nx.from_numpy_matrix(self.g_u)
+    
+    def make_input_G(self,R,N,weight=2):
+        self.g_i = np.zeros((R*N,R*N))
+        #Off diagonal strong connectivities for the cos factor
+        ctrl_matrix = weight*np.ones((N,N))
         
+        edge_couples = [[1,4],[1,5],[1,2]]
+        
+        for edge in edge_couples:
+            r_1 = edge[0]
+            r_2 = edge[1]
+            self.g_i[r_1*N:(r_1+1)*N,r_2*N:(r_2+1)*N] = ctrl_matrix
+            #do the other direction as well
+            self.g_i[r_2*N:(r_2+1)*N,r_1*N:(r_1+1)*N] = ctrl_matrix
+        
+        
+        self.G_inp = nx.from_numpy_matrix(self.g_i)
         
     def make_connectivity(self,R=6,N=1,form='block'):
         self.L = np.zeros((R*N,R*N))
@@ -139,11 +155,19 @@ class KNet:
         #How to bring phases together; this is the intrinsic alpha mode
         bring_in = self.w - self.K / len(self.G) * D * np.sin(D.T * self.states[:,-1]) + N
         
-        
+        # Control is done HERE
         D_ctrl = (nx.incidence_matrix(self.G_ctrl, oriented = True, weight = 'weight')).todense()
-        bring_out = self.K_u / len(self.G) * D_ctrl * np.cos(D_ctrl.T * self.states[:,-1])
+        #bring_out = self.K_u / len(self.G) * D_ctrl * np.cos(D_ctrl.T * self.states[:,-1])
+        bring_stim = self.K_u / len(self.G) * D_ctrl * np.sin(D_ctrl.T * self.states[:,-1]) + D_ctrl * 200 * D_ctrl.T * np.ones_like(self.states[:,-1])
         
-        return bring_in + bring_out
+        # Inputs are done HERE
+        # TREAT STIM LIKE A "PATHOLOGY FIXER" to let the brain's intrinsic dynamics do their thing.
+        # So, basically, INPUTS should be desyncing and STIM should be pure *blocking*
+        D_inp = (nx.incidence_matrix(self.G_inp, oriented = True, weight = 'weight')).todense()
+        input_out = self.K_i / len(self.G) * D_inp * np.cos(D_inp.T * self.states[:,-1])
+        
+        
+        return bring_in + bring_stim + input_out
         #return self.w - np.multiply((1/self.r_states[:,-1]),self.K / len(self.G) * D * np.sin(D.T * self.states[:,-1]) + N)
     
     # 4th order Runge-Kutta approximation
@@ -168,7 +192,7 @@ class KNet:
         #pdb.set_trace()
         phasors = np.multiply(rin,np.exp(1j * self.states[:,-1]))
         r_change = np.zeros_like(self.states[:,-1])
-        region_phasor = np.zeros((self.R,1))
+        region_phasor = np.zeros((self.R,1),dtype=complex)
         
         for rr in range(self.R):
             region_phasor[rr] = 1/(self.N) * np.sum(phasors[rr*self.N:(rr+1)*self.N])
@@ -218,8 +242,8 @@ class KNet:
         #compute the order statistic for each node
         aggr_r = []
         for rr in range(self.R):
-            aggr_r.append(np.sum(np.exp(1j * self.states[self.N * rr: self.N * (rr+1)])))
-        self.o_stat.append(aggr_r)
+            aggr_r.append(np.sum(np.exp(1j * self.states[self.N * rr: self.N * (rr+1),-1])))
+        self.o_stat.append((aggr_r))
         
 
     def plot_timecourse(self):
@@ -227,6 +251,7 @@ class KNet:
         tvect = np.linspace(0,(self.step_num+1) * self.dt,self.step_num+1)
         
         plt.figure()
+        
         plt.subplot(311)
         plt.plot(tvect,np.sin(self.states.T))
         plt.xlabel('Time Steps')
@@ -235,17 +260,17 @@ class KNet:
         
         plt.subplot(312)
         #plt.plot(tvect,(self.r_states.T))
+        #plt.plot(np.abs(self.o_stat))
         plt.plot(np.abs(self.o_stat))
-        plt.plot()
-        plt.hlines(self.r_centers,xmin=0,xmax=10)
+        #plt.hlines(self.r_centers,xmin=0,xmax=10)
         plt.title('Order statistics')
         
         plt.subplot(313)
         self.plot_r_stats()
         plt.title('R statistics')
 #%%       
-def run_model(K = 10, t = 10):
-    P = KNet(K,R=6,N=5)
+def run_model(K = 10, t = 5):
+    P = KNet(K,R=6,N=5,dt=0.001)
     for ts in range(0,int(t/P.dt)):
         if ts > t/(2*P.dt):
             K_u = 200

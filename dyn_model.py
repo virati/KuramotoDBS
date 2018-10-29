@@ -10,21 +10,25 @@ Base dynamics class
 import numpy as np
 import matplotlib.pyplot as plt
 
+from DBSpace import nestdict
+
 class dyn_model:
     def __init__(self,N=10,dt=0.01):
         self.state = np.array((N,1))
-        self.L = None
+        self.L = nestdict()
         
         self.state_register = np.zeros_like(self.state)
         
         self.dt = dt
         self.tvect = np.linspace(0,10,int(1/self.dt))
-            
+    
+    def set_connectivity(self,label='structural'):
+        pass
+    
     def dynamics(self,in_X):
         return 0
     
     def integrator(self,in_state):
-        
         k1 = self.dynamics(in_state) * self.dt
         k2 = self.dynamics(in_state + .5*k1)*self.dt
         k3 = self.dynamics(in_state + .5*k2)*self.dt
@@ -43,7 +47,6 @@ class dyn_model:
         for tt,time in enumerate(self.tvect):
             self.tstep()
             
-    
     def print_params(self):
         print(self.L)
 
