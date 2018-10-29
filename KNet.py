@@ -146,7 +146,7 @@ class KNet:
     #Kuramoto differential equation
     def phase_dev(self,phase):
         D = (nx.incidence_matrix(self.G, oriented = True, weight = 'weight')).todense() #incidence
-        N = np.random.normal(0, 1, [len(D[0]), 1])
+        N = np.random.normal(0, 10, [len(D[0]), 1])
         
         # How to handle Rs
         #rsq = self.r_states[:,-1] * self.r_states[:,-1].T
@@ -157,7 +157,7 @@ class KNet:
         # Control is done HERE
         D_ctrl = (nx.incidence_matrix(self.G_ctrl, oriented = True, weight = 'weight')).todense()
         #bring_out = self.K_u / len(self.G) * D_ctrl * np.cos(D_ctrl.T * self.states[:,-1])
-        bring_stim = self.K_u / len(self.G) * D_ctrl * np.sin(D_ctrl.T * self.states[:,-1]) + D_ctrl * 400 * D_ctrl.T * np.ones_like(self.states[:,-1])
+        bring_stim = self.K_u / len(self.G) * D_ctrl * np.sin(D_ctrl.T * self.states[:,-1]) + D_ctrl * 200 * D_ctrl.T * np.ones_like(self.states[:,-1])
         
         # Inputs are done HERE
         # TREAT STIM LIKE A "PATHOLOGY FIXER" to let the brain's intrinsic dynamics do their thing.
@@ -197,7 +197,7 @@ class KNet:
             region_phasor[rr] = 1/(self.N) * np.sum(phasors[rr*self.N:(rr+1)*self.N])
             r_change[rr*self.N : (rr+1) * self.N] = np.abs(region_phasor[rr])
             
-        r_change = - (rin - 2) - np.multiply(r_change,r_change)
+        r_change = - (rin - 2) - 2*np.multiply(r_change,r_change)
         
         return r_change
     
