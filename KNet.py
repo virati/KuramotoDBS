@@ -197,7 +197,7 @@ class KNet:
             region_phasor[rr] = 1/(self.N) * np.sum(phasors[rr*self.N:(rr+1)*self.N])
             r_change[rr*self.N : (rr+1) * self.N] = np.abs(region_phasor[rr])
             
-        r_change = - (rin - 2) - 2*np.multiply(r_change,r_change)
+        r_change = - (rin - 2) - 5*np.multiply(r_change,r_change)
         
         return r_change
     
