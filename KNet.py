@@ -22,8 +22,28 @@ def ew_multi(*args):
     return amatr
         
 #%%  
-
-class KNet:
+class Neuro_dyn:
+    def __init__(self):
+        self.G = []
+        
+        self.N = 0
+        self.R = 0
+        
+    
+    def draw_network(self):
+        plt.figure()
+        nx.draw(self.G)
+    
+    def plot_connectivity(self):
+        plt.figure()
+        plt.subplot(1,2,1)
+        plt.imshow(self.L)
+        plt.suptitle('Laplacian')
+        plt.subplot(1,2,2)
+        plt.imshow(self.g_u)
+        plt.suptitle('Control')
+        
+class KNet(Neuro_dyn):
     def __init__(self, K = 10, dt =.01,R=6,N=1):
         
         self.make_connectivity(R,N,form='block')
@@ -53,23 +73,6 @@ class KNet:
         self.o_stat = []
         
         self.K_i = 10
-        
-    def draw_network(self):
-        plt.figure()
-        nx.draw(self.G)
-
-    def plot_connectivity(self):
-        plt.figure()
-        plt.subplot(1,2,1)
-        plt.imshow(self.L)
-        plt.suptitle('Laplacian')
-        plt.subplot(1,2,2)
-        plt.imshow(self.g_u)
-        plt.suptitle('Control')
-        
-    '''
-    Weight defaults to 2
-    '''
     
     def make_control(self,R,N,weight=2):
         self.g_u = np.zeros((R*N,R*N))
@@ -168,51 +171,7 @@ class KNet:
         
         return bring_in + bring_stim + input_out + N
         #return self.w - np.multiply((1/self.r_states[:,-1]),self.K / len(self.G) * D * np.sin(D.T * self.states[:,-1]) + N)
-    
-    # 4th order Runge-Kutta approximation
-    def DEPRstep(self):
-        new_state = self.states[:,-1] + self.phase_dev(self.states[:,-1])*self.dt
-        new_state = new_state % (2 * np.pi)
-        self.states = np.hstack((self.states,new_state))
-        
-        #Work on r now
-        r_state = self.r_states[:,-1]
-        r_state += (r_state - self.r_centers) * (r_state - self.r_bound) * (r_state + self.r_bound)
-        self.r_states = np.hstack((self.r_states,r_state))
-        
-        #Track and update states
-        self.t += self.dt
-        
-        self.step_num += 1
-    
-    def r_dyn(self,rin):
-        #we want to take the r inputs and subtract the region's phasor amplitude
-        #state are the PHASES
-        #pdb.set_trace()
-        phasors = np.multiply(rin,np.exp(1j * self.states[:,-1]))
-        r_change = np.zeros_like(self.states[:,-1])
-        N = np.random.normal(0, 2, self.states[:,-1].shape)
-        
-        region_phasor = np.zeros((self.R,1),dtype=complex)
-        
-        for rr in range(self.R):
-            region_phasor[rr] = 1/(self.N) * np.sum(phasors[rr*self.N:(rr+1)*self.N])
-            r_change[rr*self.N : (rr+1) * self.N] = np.abs(region_phasor[rr])
-            
-        r_change = - (rin - 2) - 5*np.multiply(r_change,r_change) + N
-        
-        return r_change
-    
-    def POLYr_dyn(self,rin,form='quintic'):
-        
-        if form == 'cubic':
-            N = np.random.normal(0, 10, (rin.shape[0], 1))
-            return np.tanh(np.multiply(np.multiply((rin - self.r_centers),(rin - self.r_bound)),(rin+self.r_bound)) + N)
-        
-        elif form == 'quintic':
-            N = np.random.normal(0,50, (rin.shape[0], 1))
-            return 5 * np.tanh((ew_multi((rin - self.r_centers),(rin - self.r_centers - 5),(rin - self.r_centers + 5),(rin - self.r_bound),(rin+self.r_bound)))/5)  + N
-    
+
     def plot_r_stats(self):
         #plt.figure()
         #plt.plot(np.std(self.states,axis=0).T)
@@ -253,8 +212,6 @@ class KNet:
             
         return aggr_r
         
-        
-
     def plot_timecourse(self):
         
         tvect = np.linspace(0,(self.step_num+1) * self.dt,self.step_num+1)
