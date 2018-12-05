@@ -43,70 +43,42 @@ class Neuro_dyn:
         plt.imshow(self.g_u)
         plt.suptitle('Control')
         
+    #drift free default
+    def f_dyn(self,state):
+        return 0
+    
+    #Main step function and Runge_kutta Algorithm
+    def step_RK(self,K_u=0):
+
+        k1 = self.f_dyn(self.state)*self.dt
+        k2 = self.f_dyn(self.state+ .5*k1)*self.dt
+        k3 = self.f_dyn(self.state+ .5*k2)*self.dt
+        k4 = self.f_dyn(self.state+ k3)*self.dt
+        new_state = self.state + (k1+ 2*k2 + 2*k3 + k4)/6
+        
+        #Handle any post-step procedure here, like wrapping phase
+        post_proc_state = self.post_step(new_state)
+        
+        new_state = new_state % (2 * np.pi)
+        self.states = np.hstack((self.states,new_state))  
+        
+        self.t += self.dt
+        self.step_num +=1
+        
+    #main step function
+    def step(self):
+        #pre step stuff
+        
+        #step itself
+        self.step_RK()
+        
+        #post-step stuff
+        self.state_register.append(self.state)
+        
+        
 class KNet(Neuro_dyn):
     def __init__(self, K = 10, dt =.01,R=6,N=1):
-        
-        self.make_connectivity(R,N,form='block')
-        self.make_control(R,N,weight=1)
-        self.make_input_G(R,N,weight=2)
-        
-        self.N = N
-        self.R = R
-        
-        self.G = nx.from_numpy_matrix(self.L) #Graph
-        #self.states = np.matrix([4,1,3,5,6,2]).T ## memory of phases
-        #Phase states
-        self.states = np.matrix(np.random.uniform(0,2*np.pi,size=(R*N,1)))
-        
-        #Radius States
-        self.r_states = np.matrix(np.random.uniform(0.1,5,size=(R*N,1)))
-        self.r_centers = np.random.uniform(0.1,19,size=(R*N,1))
-        self.r_bound = 20
-        
-        #self.w = np.matrix([3.0,3.3,3.6,3.9,4.2,4.5]).T#np.matrix(np.random.normal(3,.2,size=(6,1))) #init intrinsic freq.
-        self.w = np.matrix(np.random.normal(20,0.5,size=(R*N,1)))
-        self.t = 0 #time
-        self.K = K #coupling constant
-        self.dt = dt #time step
-        self.step_num = 0
-        
-        self.o_stat = []
-        
-        self.K_i = 10
-    
-    def make_control(self,R,N,weight=2):
-        self.g_u = np.zeros((R*N,R*N))
-        #Off diagonal strong connectivities for the cos factor
-        ctrl_matrix = weight*np.ones((N,N))
-        
-        edge_couples = [[2,3],[0,5],[1,2]]
-        
-        for edge in edge_couples:
-            r_1 = edge[0]
-            r_2 = edge[1]
-            self.g_u[r_1*N:(r_1+1)*N,r_2*N:(r_2+1)*N] = ctrl_matrix
-            #do the other direction as well
-            self.g_u[r_2*N:(r_2+1)*N,r_1*N:(r_1+1)*N] = ctrl_matrix
-        
-        
-        self.G_ctrl = nx.from_numpy_matrix(self.g_u)
-    
-    def make_input_G(self,R,N,weight=2):
-        self.g_i = np.zeros((R*N,R*N))
-        #Off diagonal strong connectivities for the cos factor
-        ctrl_matrix = weight*np.ones((N,N))
-        
-        edge_couples = [[1,4],[1,5],[1,2]]
-        
-        for edge in edge_couples:
-            r_1 = edge[0]
-            r_2 = edge[1]
-            self.g_i[r_1*N:(r_1+1)*N,r_2*N:(r_2+1)*N] = ctrl_matrix
-            #do the other direction as well
-            self.g_i[r_2*N:(r_2+1)*N,r_1*N:(r_1+1)*N] = ctrl_matrix
-        
-        
-        self.G_inp = nx.from_numpy_matrix(self.g_i)
+        pass
         
     def make_connectivity(self,R=6,N=1,form='block'):
         self.L = np.zeros((R*N,R*N))
@@ -178,31 +150,7 @@ class KNet(Neuro_dyn):
         plt.plot(self.r_states.T)
         
     #Runge Kutta
-    def step_RK(self,K_u=0):
-        self.K_u = K_u
-        
-        k1 = self.phase_dev(self.states[:,-1])*self.dt
-        k2 = self.phase_dev(self.states[:,-1]+ .5*k1)*self.dt
-        k3 = self.phase_dev(self.states[:,-1]+ .5*k2)*self.dt
-        k4 = self.phase_dev(self.states[:,-1]+ k3)*self.dt
-        new_state = self.states[:,-1] + (k1+ 2*k2 + 2*k3 + k4)/6
-        new_state = new_state % (2 * np.pi)
-        self.states = np.hstack((self.states,new_state))  
-        
-        #Work on the Rs now
-        p1 = self.r_dyn(self.r_states[:,-1])*self.dt
-        p2 = self.r_dyn(self.r_states[:,-1] + 0.5*p1)*self.dt
-        p3 = self.r_dyn(self.r_states[:,-1] + 0.5*p2)*self.dt
-        p4 = self.r_dyn(self.r_states[:,-1] + p3)*self.dt
-        new_r_state = np.maximum(self.r_states[:,-1] + ((p1 + 2*p2 + 2*p3 + p4)/6),0)
-        self.r_states = np.hstack((self.r_states,new_r_state))
-        
-        #%%
-        #order stat handling
-        self.o_stat.append((self.order_stat()))
-        
-        self.t += self.dt
-        self.step_num +=1
+
         
     def order_stat(self):
         #compute the order statistic for each node
