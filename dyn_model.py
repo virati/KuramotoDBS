@@ -20,7 +20,7 @@ class dyn_model:
         self.state = np.zeros((N*R,1))
         self.L = np.zeros((N*R,N*R))
         
-        self.G = nx.
+        self.G = nx.from_numpy_matrix(self.L)
         self.state_register = []
         
         self.dt = dt
