@@ -12,12 +12,15 @@ import matplotlib.pyplot as plt
 import numpy.random as rand
 
 from DBSpace import nestdict
+import networkx as nx
+
 
 class dyn_model:
     def __init__(self,N=10,R=6,dt=0.01):
         self.state = np.zeros((N*R,1))
         self.L = np.zeros((N*R,N*R))
         
+        self.G = nx.
         self.state_register = []
         
         self.dt = dt
@@ -94,6 +97,8 @@ class dyn_model:
         plt.subplot(1,2,2)
         plt.imshow(self.g_u)
         plt.suptitle('Control')
+        
+        
 class drift_free(dyn_model):
     def dynamics(self):
         return 0
@@ -102,9 +107,14 @@ class KNet(dyn_model):
     def __init__(self):
         super(KNet,self).__init__()
         
+        self.K = 10
+        
         self.make_L()
+        self.D = (nx.incidence_matrix(self.G, oriented = True, weight = 'weight')).todense()
         self.state = np.random.normal(0,1,(self.N * self.R))
-        self.dynamics = lambda x,L: -np.dot(x,L)
+        
+        self.w = rand.normal(0.2,0.1,size=self.state.shape)
+        self.dynamics = lambda x,D: self.w - self.K * D * np.sin(D.T * x)
 
 
 test_net = KNet()
