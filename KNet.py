@@ -146,13 +146,13 @@ class KNet:
     #Kuramoto differential equation
     def phase_dev(self,phase):
         D = (nx.incidence_matrix(self.G, oriented = True, weight = 'weight')).todense() #incidence
-        N = np.random.normal(0, 10, [len(D[0]), 1])
+        N = np.random.normal(0, 20, [len(D[0]), 1])
         
         # How to handle Rs
         #rsq = self.r_states[:,-1] * self.r_states[:,-1].T
         
         #How to bring phases together; this is the intrinsic alpha mode
-        bring_in = self.w - self.K / len(self.G) * D * np.sin(D.T * self.states[:,-1]) + N
+        bring_in = self.w - np.multiply(self.r_states[:,-1],self.K / len(self.G) * D * np.sin(D.T * self.states[:,-1])) + N
         
         # Control is done HERE
         D_ctrl = (nx.incidence_matrix(self.G_ctrl, oriented = True, weight = 'weight')).todense()
@@ -191,13 +191,15 @@ class KNet:
         #pdb.set_trace()
         phasors = np.multiply(rin,np.exp(1j * self.states[:,-1]))
         r_change = np.zeros_like(self.states[:,-1])
+        N = np.random.normal(0, 2, self.states[:,-1].shape)
+        
         region_phasor = np.zeros((self.R,1),dtype=complex)
         
         for rr in range(self.R):
             region_phasor[rr] = 1/(self.N) * np.sum(phasors[rr*self.N:(rr+1)*self.N])
             r_change[rr*self.N : (rr+1) * self.N] = np.abs(region_phasor[rr])
             
-        r_change = - (rin - 2) - 5*np.multiply(r_change,r_change)
+        r_change = - (rin - 2) - 5*np.multiply(r_change,r_change) + N
         
         return r_change
     
@@ -274,7 +276,8 @@ class KNet:
     
         
         plt.subplot(313)
-        aggr = np.sum(np.array(self.o_stat),axis=1)
+        aggr_sums = np.array(self.o_stat) #/ np.sum(np.array(self.o_stat),axis=0,keepdims=True)
+        aggr = np.sum(aggr_sums,axis=1)
         plt.plot(np.abs(aggr))
         plt.title('Across Rs')
         
