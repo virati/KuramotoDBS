@@ -23,7 +23,7 @@ class dyn_model:
         self.state_register = []
         
         self.dt = dt
-        self.tvect = np.linspace(0,120,int(1/self.dt))
+        self.tvect = np.linspace(0,60,int(1/self.dt))
         
         self.N = N
         self.R = R
@@ -85,7 +85,7 @@ class dyn_model:
     
     def run(self):
         for tt,time in enumerate(self.tvect):
-            print('k: ' + str(self.Kt[tt]))
+            #print('k: ' + str(self.Kt[tt]))
             self.tstep(K=self.Kt[tt])
             
     def print_params(self):
@@ -117,7 +117,7 @@ class drift_free(dyn_model):
 
 class KNet(dyn_model):
     def __init__(self,K=2,start_state=None):
-        super(KNet,self).__init__()
+        super(KNet,self).__init__(dt=0.0001)
         
         #self.K = K
         #Kt is the timeseries of global connectivity
