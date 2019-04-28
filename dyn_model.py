@@ -13,6 +13,11 @@ import numpy.random as rand
 
 from DBSpace import nestdict
 import networkx as nx
+import sys
+
+from network_viz import *
+
+import pdb
 
 
 class dyn_model:
@@ -36,7 +41,7 @@ class dyn_model:
     def set_connectivity(self,label='structural'):
         self.G = nx.from_numpy_matrix(self.L)
     
-    def make_L(self):
+    def DEPRmake_L(self):
         inner_connectivity_weight = 5 # default = 5
         inner_connectivity_offset = 1 # default = 0
         R = self.R
@@ -164,12 +169,14 @@ class KNet(dyn_model):
                 
                 self.L[nn*N:(nn+1)*N,nn*N:(nn+1)*N] = intermed_matrix
                 
-                #Now do off-diagonals
-                long_mask = rand.randint(100,size=self.L.shape)
-                long_mask[long_mask < 100*sparsity] = 0
-                long_mask[long_mask >=100*sparsity] = self.K/10
-                
-                self.L += long_mask
+            #Now do off-diagonals
+            long_mask = rand.randint(100,size=self.L.shape).astype(np.float)
+            #pdb.set_trace()
+            long_mask[long_mask < 100*sparsity] = 0
+            long_mask[long_mask >= 100*sparsity] = self.K/10
+            
+            self.L += long_mask
+            
                 
                 #Final thresholding
                 #self.L[self.L > 0] = 1
@@ -179,15 +186,20 @@ class KNet(dyn_model):
             self.L = rand.rand(R*N,R*N)
         
     def plot_state_register(self):
-        plt.figure()
-        plt.plot(np.sin(np.array(self.state_register).squeeze()))
+        fig, ax1 = plt.subplots()
+        ax1.plot(self.tvect,np.sin(np.array(self.state_register).squeeze()))
+        
+        ax2 = ax1.twinx()
+        ax2.plot(self.tvect,self.Kt)
+        
+        #plt.figure()
+        #plt.plot(np.sin(np.array(self.state_register).squeeze()))
+        
 
 
-test_net = KNet(K=4)
+test_net = KNet(K=2)
 test_net.run()
 test_net.plot_state_register()
 end_state = np.sin(np.array(test_net.state_register[-1]))
 
-#Model2 = KNet(K=0.1,start_state=end_state)
-#Model2.run()
-#Model2.plot_state_register()
+render_graph(test_net.G)
