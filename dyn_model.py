@@ -13,8 +13,9 @@ import numpy.random as rand
 
 from DBSpace import nestdict
 import networkx as nx
-import sys
 
+import sys
+sys.path.append('/home/virati/Dropbox/projects/Research/DBSControl/autoLie/')
 from network_viz import *
 
 import pdb
@@ -102,12 +103,12 @@ class dyn_model:
 
     def plot_L(self):
         plt.figure()
-        plt.subplot(1,2,1)
+        #plt.subplot(1,2,1)
         plt.imshow(self.L)
         plt.suptitle('Laplacian')
-        plt.subplot(1,2,2)
-        plt.imshow(self.g_u)
-        plt.suptitle('Control')
+        #plt.subplot(1,2,2)
+        #plt.imshow(self.g_u)
+        #plt.suptitle('Control')
         
 class dz_model():
     def __init__(self):
@@ -146,7 +147,7 @@ class KNet(dyn_model):
             self.state = start_state
             
         
-        self.w = rand.normal(1,0.1,size=self.state.shape) * 20
+        self.w = rand.normal(5,1,size=self.state.shape) * 4
         self.dynamics = lambda D,x,k: self.w - k * D * np.sin(D.T * x)
         self.post_dynamics = lambda x: x % (2 * np.pi)
         
@@ -195,6 +196,9 @@ class KNet(dyn_model):
         #plt.figure()
         #plt.plot(np.sin(np.array(self.state_register).squeeze()))
         
+    def plot_ephys(self):
+        #Each region outputs its own channel
+        pass
 
 
 test_net = KNet(K=2)

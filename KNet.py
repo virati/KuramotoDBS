@@ -5,6 +5,7 @@ Created on Thu Oct 18 18:25:20 2018
 
 @author: virati, Rohit Konda
 PO Model version from Rohit
+THIS IS NOW OBSOLETE
 """
 
 import networkx as nx
