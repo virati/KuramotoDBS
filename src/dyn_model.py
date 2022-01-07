@@ -4,7 +4,8 @@
 Created on Fri Oct 26 17:10:17 2018
 
 @author: virati
-Base dynamics class
+Base dynamics class for KURAMOTODBS
+OBSOLETE - 11/20/2020
 """
 
 import numpy as np
@@ -15,8 +16,8 @@ from DBSpace import nestdict
 import networkx as nx
 
 import sys
-sys.path.append('/home/virati/Dropbox/projects/Research/DBSControl/autoLie/')
-from network_viz import *
+sys.path.append('/home/virati/Dropbox/projects/Research/Control/autoDyn/lib/')
+from net_viz_lib import *
 
 import pdb
 
@@ -64,7 +65,7 @@ class dyn_model:
             long_mask[long_mask >=100*sparsity] = 10
             
             self.L += long_mask
-            
+            5
                 
     def integrator(self,K):
 
@@ -94,6 +95,8 @@ class dyn_model:
             #print('k: ' + str(self.Kt[tt]))
             self.tstep(K=self.Kt[tt])
             
+        self.osc_register = np.sin(np.array(self.state_register).squeeze())
+            
     def print_params(self):
         print(self.L)
         
@@ -109,6 +112,19 @@ class dyn_model:
         #plt.subplot(1,2,2)
         #plt.imshow(self.g_u)
         #plt.suptitle('Control')
+      
+class EEG_model:
+    def __init__(self,dyn_network):
+        self.measurement_matrix = np.random.normal(0,1.0,size=(256,dyn_network.R * dyn_network.N))
+        self.dyn_network = dyn_network
+        
+    def measure(self):
+        self.dyn_network.run()
+        #test_net.plot_state_register()
+        measured_y = np.dot(self.measurement_matrix,self.dyn_network.osc_register.T)
+        fig,ax1 = plt.subplots()
+        ax1.plot(self.dyn_network.tvect,measured_y.T,alpha=0.2)
+        
         
 class dz_model():
     def __init__(self):
@@ -127,12 +143,12 @@ class KNet(dyn_model):
         
         #self.K = K
         #Kt is the timeseries of global connectivity
-        self.Kt = np.random.normal(0.1,0.01,size=self.tvect.shape)
+        self.Kt = np.random.normal(0.51,0.01,size=self.tvect.shape)
         half_pt = int(np.floor(self.Kt.shape[0]/3))
         self.Kt[half_pt:] += K
         
         #self.K is a static parameter used to construct the L
-        # Should probably change the names and split these out
+        # Should probably change the names and split these o.ut
         self.K = 6
         
         self.make_L_struct()
@@ -188,7 +204,7 @@ class KNet(dyn_model):
         
     def plot_state_register(self):
         fig, ax1 = plt.subplots()
-        ax1.plot(self.tvect,np.sin(np.array(self.state_register).squeeze()))
+        ax1.plot(self.tvect,self.osc_register)
         
         ax2 = ax1.twinx()
         ax2.plot(self.tvect,self.Kt)
@@ -201,9 +217,15 @@ class KNet(dyn_model):
         pass
 
 
-test_net = KNet(K=2)
-test_net.run()
-test_net.plot_state_register()
-end_state = np.sin(np.array(test_net.state_register[-1]))
 
-render_graph(test_net.G)
+if __name__ == '__main__':
+    test_net = KNet(K=2)
+    head_model = EEG_model(test_net)
+    head_model.measure()
+
+if __name__ == '__unit_test__':
+    test_net.run()
+    test_net.plot_state_register()
+    end_state = np.sin(np.array(test_net.state_register[-1]))
+    #%%
+    plain_render_graph(test_net.G)
