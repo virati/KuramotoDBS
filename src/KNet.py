@@ -79,7 +79,10 @@ class Neuro_dyn:
         
 class KNet(Neuro_dyn):
     def __init__(self, K = 10, dt =.01,R=6,N=1):
-        pass
+        self.dt = dt
+        self.K = K
+        self.R = R
+        self.N = N
         
     def make_connectivity(self,R=6,N=1,form='block'):
         self.L = np.zeros((R*N,R*N))

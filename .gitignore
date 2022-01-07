@@ -1,0 +1,4 @@
+notebooks/
+*.png
+.ipynb_checkpoints/*
+.venv/
